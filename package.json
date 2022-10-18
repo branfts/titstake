@@ -1,0 +1,57 @@
+{
+    "name": "titstake",
+    "version": "0.0.1",
+    "description": "Stake the White Meat",
+    "author": "Will",
+    "license": "MIT",
+    "dependencies": {
+        "bluebird": "^3.7.2",
+        "bn.js": "^5.2.1",
+        "mini-svg-data-uri": "^1.4.3",
+        "near-api-js": "^0.41.0",
+        "near-cli": "^1.0.0",
+        "near-seed-phrase": "^0.1.0"
+    },
+    "devDependencies": {
+        "cross-env": "^7.0.3",
+        "eslint": "^7.14.0",
+        "jest": "^27.5.1",
+        "jest-environment-uint8array": "^1.0.0",
+        "nanoid": "^3.3.4",
+        "node-fetch": "^2.6.1",
+        "npm-run-all": "^4.1.5",
+        "rimraf": "^3.0.2"
+    },
+    "browserslist": [
+        "last 2 Chrome versions"
+    ],
+    "scripts": {
+        "hoist-credentials": "mkdir ./neardev/testnet && mkdir ./neardev/mainnet && node ./utils/hoist-credentials.js",
+        "test:deploy": "yarn dev:deploy && yarn test",
+        "test:deploy:main": "yarn dev:deploy:main && yarn test:main",
+        "test:deploy:voting": "yarn dev:deploy:voting && yarn test:voting",
+        "test:deploy:watch": "yarn dev:deploy && yarn test:watch",
+        "test:deploy:debug": "yarn dev:deploy && yarn test:debug",
+        "test:deploy:prod": "yarn prod:deploy && yarn hoist-credentials && cross-env NO_TIME_WINDOW_TESTS=true yarn test",
+        "test": "cross-env jest --useStderr --selectProjects main voting",
+        "test:main": "cross-env jest --useStderr --selectProjects main",
+        "test:voting": "cross-env jest --useStderr --selectProjects voting",
+        "test:watch": "cross-env jest --useStderr --selectProjects main --watchAll",
+        "test:debug": "cross-env node --inspect=9233 node_modules/.bin/jest --run-in-band --useStderr --selectProjects main --watch",
+        "test:unit": "(cd contracts && cargo test -- --nocapture --color always)",
+        "dev:deploy": "npm-run-all --serial dev:deploy:voting dev:deploy:main",
+        "dev:deploy:main": "yarn build:contract:main && rm -rf neardev-main && (near dev-deploy out/titstake-development-optimized.wasm && mv neardev neardev-main || exit 0) && yarn patch:config",
+        "dev:deploy:voting": "yarn build:contract:voting && rm -rf neardev-voting && (near dev-deploy out/titstake-voting-development-optimized.wasm && mv neardev neardev-voting || exit 0) && yarn patch:config",
+        "prod:deploy": "yarn build:contract:prod && rm -rf neardev && (near dev-deploy || exit 0) && yarn patch:config",
+        "build:contracts:production": "export RUST_ENV=production && ./removeLogMacros.sh && cd contracts/main && ./build.sh && cd ../.. && wasm-opt -Oz -o out/titstake-optimized.wasm out/titstake.wasm && du -b out/titstake*.wasm",
+        "build:contracts": "npm-run-all --serial build:contract:voting patch:main build:contract:main",
+        "build:contract:main": "cd contracts/main && ./build.sh && cd ../.. && mv out/titstake.wasm out/titstake-development.wasm && wasm-opt -Oz -o out/titstake-development-optimized.wasm out/titstake-development.wasm && du -b out/titstake*.wasm",
+        "build:contract:voting": "cd contracts/voting && ./build.sh && cd ../.. && mv out/titstake-voting.wasm out/titstake-voting-development.wasm && wasm-opt -Oz -o out/titstake-voting-development-optimized.wasm out/titstake-voting-development.wasm && du -b out/titstake-voting*.wasm",
+        "patch:main": "node ./utils/patch-main.js",
+        "patch:config": "node ./utils/patch-config.js",
+        "fix": "eslint src/ test/ --fix",
+        "prebuild": "rm -rf ./dist",
+        "patch:deploy-config": "node ./utils/patch-deploy-config.js",
+        "deploy": "yarn patch:deploy-config && yarn build"
+    }
+}
