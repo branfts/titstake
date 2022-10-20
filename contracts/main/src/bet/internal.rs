@@ -44,6 +44,7 @@ impl Contract {
             }
         }
     }
+
     pub (crate) fn start_bet_settlement(
         &mut self,
         bet_ids: Vec<BetId>

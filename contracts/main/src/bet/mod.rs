@@ -1,8 +1,14 @@
 use crate::*;
 
 use near_sdk::json_types::U128;
-use near_sdk::{Timestamp, ext_contract, PromiseResult, serde_json};
+use near_sdk::{EpochHeight, Timestamp, ext_contract, PromiseResult, serde_json};
 use near_sdk::log; // no-production
+use uint::construct_uint;
+
+construct_uint! {
+    /// 256-bit unsigned integer.
+    pub struct U256(4);
+}
 
 pub mod enumerable;
 pub mod internal;
@@ -65,6 +71,7 @@ pub struct Stake {
     pub staker: AccountId,
     pub unmatched: Balance,
     pub gentlemans: bool,
+    pub epoch: EpochHeight,
 }
 #[derive(
     BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug
@@ -74,7 +81,7 @@ pub struct CancelledStake {
     pub bet_id: BetId,
     pub amount: Balance,
     pub staker: AccountId,
-    pub epoch: u64,
+    pub epoch: EpochHeight,
     pub cancelled: bool
 }
 #[derive(
@@ -156,7 +163,8 @@ impl Contract {
             amount: amount.clone(),
             staker: env::predecessor_account_id(),
             unmatched: amount,
-            gentlemans: gentlemans.unwrap_or(false)
+            gentlemans: gentlemans.unwrap_or(false),
+            epoch: env::epoch_height(),
         };
 
         self.persons.insert(&person);
@@ -220,6 +228,32 @@ impl Contract {
         internal::refund_deposit(env::storage_usage() - initial_storage_usage);
 
         cancel_status.to_string()
+    }
+
+    pub fn calculate_stake_reward(
+        &mut self,
+        stake_id: StakeId,
+    ) -> (u16, Balance) {
+        // what happens if/when the stake pool is changed and stakes are spread accross pools?!  Answer: move pool to the stake object.
+        let pool = &self
+            .metadata
+            .get()
+            .unwrap()
+            .pool
+            .unwrap_or(DEFAULT_STAKE_POOL.parse().unwrap());
+        let stake = self.stakes.get(&stake_id).unwrap_or_else(|| {
+            env::panic_str(&("ERR_DOES_NOT_EXIST stake_id: ".to_owned() + &stake_id.to_string()).as_str())
+        });
+
+        let mut offset = 0;
+        if DEFAULT_STAKE_POOL == "legends.pool.f863973.m0" {
+            offset = 30 * 2; // a month
+        }
+        let epochs_staked = env::epoch_height() - stake.epoch + offset;
+        let epochs_per_year = 365 * 2;
+        let factor = U256::from(stake.amount) * U256::from(APY.0) / U256::from(APY.1).as_u128();
+        let yield_per_epoch = factor.as_u128() / epochs_per_year;
+        (epochs_staked as u16, (yield_per_epoch * epochs_staked as u128) as Balance)
     }
 
     pub fn refund_cancelled_stake(&mut self,
@@ -298,6 +332,7 @@ impl Contract {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Failed => "oops!".to_string(),
             PromiseResult::Successful(_result) => {
+                // maybe we should be saving some unique id from the staking pool transaction for fast lookups later during calculations, etc... also to double check our own time based APY calculations. In which case the stake object should be updated to hold said id.
                 self.stakes.insert(&stake_id, &stake);
                 self.match_stake(stake_id);
                 "ok".to_string()
@@ -366,6 +401,11 @@ impl Contract {
         }
     }
 
+}
+
+#[ext_contract(ext_get_account_total_balance)]
+pub trait GetAccountTotalBalance {
+    fn get_account_total_balance(&mut self);
 }
 
 #[ext_contract(ext_deposit_and_stake)]

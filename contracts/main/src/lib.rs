@@ -31,6 +31,7 @@ const VOTING_CONTRACT: &str = "dev-1663982099301-84507361434162";
 
 const ID_LEN: u8 = 21;
 const MIN_STAKE: Balance = 69_000_000_000_000_000_000_000;
+const APY: (u32, u32) = (45, 100);
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
@@ -141,6 +142,7 @@ impl Contract {
             staker: tmp_account_id,
             unmatched: MIN_STAKE * 1000,
             gentlemans: false,
+            epoch: env::epoch_height(),
         };
         self.stakes.insert(&tmp_stake_id, tmp_stake);
         self.extra_storage_in_bytes_per_stake = env::storage_usage() - initial_storage_usage;
