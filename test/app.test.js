@@ -551,4 +551,35 @@ describe(contractName, () => {
         const stakes = await bob.account.viewFunction(contractId, 'stakes_count');
         expect(stakes);
     });
+    test.only(`calculate stake reward`, async () => {
+        const stake_id = nanoid();
+
+        await bob.account.functionCall({
+            contractId,
+            methodName: 'new_stake',
+            args: {
+                bet_id: nanoid(),
+                stake_id,
+                prediction: 'Reduction',
+                position: 'Lay',
+                person: 'bafybeihdzk6jvzkt2d3ekxkpkgdvtl3zryzeotsdlku7my6tncxxlyx3my',
+                end: (Date.now() + 8.64e+7) * 1000000
+            },
+            gas: GAS,
+            attachedDeposit: parseNearAmount('1')
+        });
+
+        const response = await bob.account.functionCall({
+            contractId,
+            methodName: 'calculate_stake_reward',
+            args: {
+                stake_id,
+            },
+        });
+
+        const reward = Buffer.from(response.status.SuccessValue, 'base64').toString();
+
+        console.log(reward, formatNearAmount(reward[1]));
+        expect(reward[1]);
+    });
 });

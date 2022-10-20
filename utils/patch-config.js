@@ -1,4 +1,6 @@
 const fs = require('fs');
+const { join } = require('path');
+const os = require('os');
 const contracts = ['main', 'voting'].map(id => {
     try {
         return { id, name: fs.readFileSync(`./neardev-${id}/dev-account`).toString() };
@@ -11,8 +13,8 @@ const paths = [
     './test/config.js',
     '/vol/synology/development/titstake.near.contract-id.txt',
     '/vol/synology/development/titstake-voting.near.contract-id.txt',
-    '~/titstake/strap/.env',
-    '~/titstake/strap/reload-nodemon.json',
+    join(os.homedir(), '/titstake/strap/.env'),
+    join(os.homedir(), '/titstake/strap/reload-nodemon.json'),
 ];
 
 fs.readFile(paths[0], 'utf-8', function (err, data) {
