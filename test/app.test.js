@@ -29,6 +29,8 @@ console.log("\n\n contractId:", contractId, "\n\n");
 
 describe(contractName, () => {
     let alice = {}, mary = {}, bob = {}, john = {}, jack = {};
+    const stakeId1 = nanoid();
+    const stakeId2 = nanoid();
 
     beforeAll(async () => {
         await initContract();
@@ -164,15 +166,37 @@ describe(contractName, () => {
             expect(true);
         }
     });
-    test.only(`ended bets`, async () => {
+    test(`ended bets`, async () => {
+        let usedPersons = [];
+        let unusedPersons = [
+            'bafybeihdzk6jvzkt2d3ekxkpkgdvtl3zryzeotsdlku7my6tncxxlyx3my',
+            'bafybeihjuem5s6djj6jidgp6mf6uwtvdyruufojwpa7n5dssmhbet2zg5u',
+            'bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa',
+            'bafybeihdsum5qnm5fhylf3li36d752l7pozadsf76tucnvvne753xsh7ei',
+            'bafybeiavay7ddmf4vsm3audrj7s7u47awwyfn2yslia5zg3jzh7o2gpcju',
+            'bafybeiguyjbhq7xyj5mvjspdxcpwbfn2xewcrunabjb663hnudbobx6rzu',
+            'bafybeigjynv4uo5yyxec7th7lbardr6aozhcyb6onsoi23mkthiim26vhm',
+            'bafybeidwwzfc6onlew2sea7wooovhc6a5b5bs6nlilcsjw5bbsvpr2conu',
+            'bafybeifvouxxbup5xaxxinkp5ptf3y2w6lahegeueyzcxztgx2gm44plom',
+            'bafybeigdwhuqyzzav6hjfpph2mg7tc7zijxemskyix3jikh4guftdke2yy',
+            'bafybeiezfxpm7durc3v34e35vgk4efozphifgousx7i4sxg2ux2p7swjvi',
+            'bafybeie6deafy6tfytsdwqw3g36ziidcvldokivtjbclp6isueijnf4rci',
+            'bafybeiew4ptab33q46rwmv2zgan7gwxbjcnmneci7rt2rkadw3jphezuoa'
+        ];
+            
         await Promise.all([...Array(20).keys()].map(index => {
+            if (!unusedPersons?.length) {
+                unusedPersons = [ ...usedPersons.slice(0, usedPersons.length) ];
+            }
+            const randomIndex = Math.floor(Math.random() * unusedPersons.length);
             const bet_id = index < 2 ? ['c5VA2k16PbQC_KeOAZTkR', 'JixWNWsYXVacHF9sQsOFH'][index] : nanoid(), // c5VA2k16PbQC_KeOAZTkR is a static id used to test the voting contract
-                person = ['bafybeihdzk6jvzkt2d3ekxkpkgdvtl3zryzeotsdlku7my6tncxxlyx3my', 'bafybeihjuem5s6djj6jidgp6mf6uwtvdyruufojwpa7n5dssmhbet2zg5u', 'bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa'][Math.floor(Math.random() * 3)],
+                person = `${unusedPersons[randomIndex]}`,
                 end = (Date.now() + 60 * 1000) * 1000000, // 60 second buffer to make it to the contract logic without triggering an invalid date error
                 randomStakers = [bob, john, jack, alice, mary]
                     .sort(() => 0.5 - Math.random())
                     .splice(Math.floor(2 + (Math.random() * 3)));
 
+            usedPersons.push(unusedPersons.splice(randomIndex, 1));
             Promise.all(randomStakers.map(({ account }, index) => {
                 return account.functionCall({
                     contractId,
@@ -191,7 +215,7 @@ describe(contractName, () => {
             }));
         }));
     });
-    test.only(`gentlemans bet`, async () => {
+    test(`gentlemans bet`, async () => {
         await bob.account.functionCall({
             contractId,
             methodName: 'new_stake',
@@ -209,7 +233,7 @@ describe(contractName, () => {
         });
         // test should be something to ensure the bet is not matched.
     });
-    test.only(`single bet`, async () => {
+    test(`single bet`, async () => {
         const bet_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
 
@@ -218,7 +242,7 @@ describe(contractName, () => {
             methodName: 'new_stake',
             args: {
                 bet_id,
-                stake_id: nanoid(),
+                stake_id: stakeId1,
                 prediction: 'Reduction',
                 position: 'Lay',
                 person: 'bafybeihdzk6jvzkt2d3ekxkpkgdvtl3zryzeotsdlku7my6tncxxlyx3my',
@@ -228,7 +252,7 @@ describe(contractName, () => {
             attachedDeposit: parseNearAmount('0.1')
         });
     });
-    test.only(`single matching bet`, async () => {
+    test(`single matching bet`, async () => {
         const bet_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
 
@@ -237,14 +261,14 @@ describe(contractName, () => {
             methodName: 'new_stake',
             args: {
                 bet_id,
-                stake_id: nanoid(),
+                stake_id: stakeId2,
                 prediction: 'Reduction',
                 position: 'Back',
                 person: 'bafybeihjuem5s6djj6jidgp6mf6uwtvdyruufojwpa7n5dssmhbet2zg5u',
                 end
             },
             gas: GAS,
-            attachedDeposit: parseNearAmount('0.1')
+            attachedDeposit: parseNearAmount('0.2')
         });
 
         const response = await alice.account.functionCall({
@@ -264,7 +288,7 @@ describe(contractName, () => {
 
         console.log(JSON.stringify(Buffer.from(response.status.SuccessValue, 'base64').toString()), null, '  ');
     });
-    test.only(`single matching bet`, async () => {
+    test(`single matching bet`, async () => {
         const bet_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
 
@@ -300,7 +324,7 @@ describe(contractName, () => {
 
         console.log(JSON.stringify(Buffer.from(response.status.SuccessValue, 'base64').toString()), null, '  ');
     });
-    test.only(`single matching bet`, async () => {
+    test(`single matching bet`, async () => {
         const bet_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
 
@@ -347,7 +371,7 @@ describe(contractName, () => {
         
         console.log(JSON.stringify(state), null, '  ');
     });
-    test.only(`cancel bet (full)`, async () => {
+    test(`cancel bet (full)`, async () => {
         const bet_id = nanoid(),
             stake_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
@@ -381,7 +405,7 @@ describe(contractName, () => {
         expect(Buffer.from(response.status.SuccessValue, 'base64').toString()).toEqual(expect.stringMatching(/full cancellation pending/));
         console.log(JSON.stringify(Buffer.from(response.status.SuccessValue, 'base64').toString()), null, '  ');
     });
-    test.only(`cancel bet (partial)`, async () => {
+    test(`cancel bet (partial)`, async () => {
         const bet_id = nanoid(),
             stake_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
@@ -429,7 +453,7 @@ describe(contractName, () => {
         expect(Buffer.from(response.status.SuccessValue, 'base64').toString()).toEqual(expect.stringMatching(/partial cancellation pending/));
         console.log(JSON.stringify(Buffer.from(response.status.SuccessValue, 'base64').toString()), null, '  ');
     });
-    test.only(`cancel bet (not cancelled)`, async () => {
+    test(`cancel bet (not cancelled)`, async () => {
         const bet_id = nanoid(),
             stake_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000;
@@ -477,7 +501,7 @@ describe(contractName, () => {
         expect(Buffer.from(response.status.SuccessValue, 'base64').toString()).toEqual(expect.stringMatching(/not cancelled/));
         console.log(JSON.stringify(Buffer.from(response.status.SuccessValue, 'base64').toString()), null, '  ');
     });
-    test.only(`refund cancelled bet`, async () => {
+    test(`refund cancelled bet`, async () => {
         const bet_id = nanoid(),
             stake_id = nanoid(),
             end = (Date.now() + 8.64e+7) * 1000000,
@@ -523,35 +547,35 @@ describe(contractName, () => {
         console.log({accountBalanceAfter});
         expect(Number(accountBalanceBefore)).toBeCloseTo(Number(accountBalanceAfter), 1);
     });
-    test.only(`view persons`, async () => {
+    test(`view persons`, async () => {
         const persons = await bob.account.viewFunction(contractId, 'persons');
-        expect(persons.length).toBe(3);
+        expect(persons.length).toBe(13);
     });
-    test.only(`view persons excluding`, async () => {
+    test(`view persons excluding`, async () => {
         const persons = await bob.account.viewFunction(contractId, 'persons', {
             exclude: [ 'bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa' ]
         });
-        expect(persons.length).toBe(2);
+        expect(persons.length).toBe(12);
     });
-    test.only(`view bets for person bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa`, async () => {
+    test(`view bets for person bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa`, async () => {
         const bets = await bob.account.viewFunction(contractId, 'bets', {
             person: 'bafybeigwqcbb5qj2463brh627ktivsgdeiikk4w2o6dgipgqoq4revy4fa'
         });
-        expect(bets.length).toBeGreaterThanOrEqual(10);
+        expect(bets.length).toBeGreaterThanOrEqual(6);
     });
-    test.only(`view total persons`, async () => {
+    test(`view total persons`, async () => {
         const persons = await bob.account.viewFunction(contractId, 'persons_count');
-        expect(persons).toBe('3');
+        expect(persons).toBe('13');
     });
-    test.only(`view total bets`, async () => {
+    test(`view total bets`, async () => {
         const bets = await bob.account.viewFunction(contractId, 'bets_count');
         expect(bets);
     });
-    test.only(`view total stakes`, async () => {
+    test(`view total stakes`, async () => {
         const stakes = await bob.account.viewFunction(contractId, 'stakes_count');
         expect(stakes);
     });
-    test.only(`calculate stake reward`, async () => {
+    test(`calculate stake earning`, async () => {
         const stake_id = nanoid();
 
         await bob.account.functionCall({
@@ -571,15 +595,33 @@ describe(contractName, () => {
 
         const response = await bob.account.functionCall({
             contractId,
-            methodName: 'calculate_stake_reward',
+            methodName: 'stake_earnings',
             args: {
-                stake_id,
+                stake_ids: [stake_id],
             },
         });
 
-        const reward = Buffer.from(response.status.SuccessValue, 'base64').toString();
+        const reward = JSON.parse(Buffer.from(response.status.SuccessValue, 'base64').toString());
 
-        console.log(reward, formatNearAmount(reward[1]));
-        expect(reward[1]);
+        console.log(reward.yield_balance, formatNearAmount(reward.yield_balance));
+        expect(reward[0]).toEqual(expect.objectContaining({
+            stake_id,
+            epochs: expect.any(Array),
+            yield_balance: expect.any(String),
+            total_balance: expect.any(String)
+        }));
+    });
+    test(`view total stakes for person`, async () => {
+        const stakes = await bob.account.viewFunction(contractId, 'stakes_for_person', {
+            staker: bob.id
+        });
+        expect(stakes);
+    });
+    test(`view earnings for stakes`, async () => {
+        const earnings = await bob.account.viewFunction(contractId, 'stake_earnings', {
+            stake_ids: [stakeId1, stakeId2]
+        });
+        console.log(earnings);
+        expect(earnings);
     });
 });

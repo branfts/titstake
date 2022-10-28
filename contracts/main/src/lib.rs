@@ -33,6 +33,11 @@ const ID_LEN: u8 = 21;
 const MIN_STAKE: Balance = 69_000_000_000_000_000_000_000;
 const APY: (u32, u32) = (45, 100);
 
+#[derive(BorshDeserialize, BorshSerialize)]
+pub struct Account {
+    earnings: UnorderedMap<StakeId, StakeEarning>
+}
+
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct ContractMetadata {
@@ -51,6 +56,7 @@ pub struct ContractMetadata {
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
     pub owner_id: AccountId,
+    pub accounts: UnorderedMap<AccountId, Account>,
     pub persons: UnorderedSet<Person>,
     pub bets: UnorderedMap<BetId, Bet>,
     pub stakes: UnorderedMap<StakeId, Stake>,
@@ -64,6 +70,8 @@ pub struct Contract {
 #[derive(BorshSerialize)]
 pub enum StorageKey {
     ContractMetadata,
+    Accounts,
+    Earnings,
     Persons,
     Bets,
     Stakes,
@@ -76,6 +84,9 @@ impl Contract {
     pub fn new(owner_id: AccountId, metadata: ContractMetadata) -> Self {
         let mut this = Self {
             owner_id: owner_id.into(),
+            accounts: UnorderedMap::new(
+                StorageKey::Accounts.try_to_vec().unwrap()
+            ),
             persons: UnorderedSet::new(
                 StorageKey::Persons.try_to_vec().unwrap()
             ),
@@ -134,18 +145,24 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
         let tmp_bet_id = "a".repeat(21).parse().unwrap();
         let tmp_stake_id = "a".repeat(21).parse().unwrap();
-        let tmp_account_id = "a".repeat(64).parse().unwrap();
+        let tmp_account_id: AccountId = "a".repeat(64).parse().unwrap();
         let tmp_stake = &Stake {
             bet_id: tmp_bet_id,
             position: Position::Lay,
             amount: MIN_STAKE * 1000,
-            staker: tmp_account_id,
+            staker: tmp_account_id.clone(),
             unmatched: MIN_STAKE * 1000,
             gentlemans: false,
             epoch: env::epoch_height(),
         };
+        self.accounts.insert(&tmp_account_id.clone(), &Account {
+            earnings: UnorderedMap::new(
+                StorageKey::Earnings.try_to_vec().unwrap()
+            )
+        });
         self.stakes.insert(&tmp_stake_id, tmp_stake);
         self.extra_storage_in_bytes_per_stake = env::storage_usage() - initial_storage_usage;
         self.stakes.remove(&tmp_stake_id);
+        self.accounts.remove(&tmp_account_id);
     }
 }
