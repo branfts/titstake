@@ -1,14 +1,13 @@
 const contracts = {
-    main: 'dev-1666222933650-73353810085800',
+    main: 'dev-1666980860418-47622489684874',
     staking: 'dev-1662131033828-58340771735147'
 };
 
 module.exports = function getConfig() {
     let config = {
         networkId: "testnet",
-        nodeUrl: "https://rpc.testnet.near.org",
-        // nodeUrl: 'https://api-localdev.titstake.com:3443',
-        // nodeUrl: "https://rpc.localdev.titstake.com",
+        // nodeUrl: "https://rpc.testnet.near.org",
+        nodeUrl: 'https://rpc-localdev.titstake.com',
         walletUrl: "https://wallet.testnet.near.org",
         helperUrl: "https://helper.testnet.near.org",
         contracts,

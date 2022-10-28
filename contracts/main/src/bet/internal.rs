@@ -1,5 +1,6 @@
 use crate::*;
 
+use near_sdk::json_types::U128;
 use near_sdk::log; // no-production
 
 #[near_bindgen]
@@ -74,6 +75,50 @@ impl Contract {
             .with_attached_deposit(1)
             .motions(motions_params)
             .then(ext_self::ext(env::current_account_id()).voting_callback(bet_ids.clone()))
+    }
+
+    pub(crate) fn internal_calculate_stake_earning(
+        &self,
+        stake_id: StakeId,
+    ) -> StakeEarning {        
+        // what happens if/when the stake pool is changed and stakes are spread accross pools?!  Answer: move pool to the stake object.
+        let pool = &self
+            .metadata
+            .get()
+            .unwrap()
+            .pool
+            .unwrap_or(DEFAULT_STAKE_POOL.parse().unwrap());
+        let stake = self.stakes.get(&stake_id.clone()).unwrap_or_else(|| {
+            env::panic_str(&("ERR_DOES_NOT_EXIST stake_id: ".to_owned() + &stake_id.clone().to_string()).as_str())
+        });
+    
+        let mut offset = 0;
+        if DEFAULT_STAKE_POOL == "legends.pool.f863973.m0" {
+            offset = 30 * 2; // a month
+        }
+    
+        let epoch = env::epoch_height() + offset;
+        let mut account = self.accounts.get(&stake.staker).unwrap();
+        let mut stake_earning = account.earnings.get(&stake_id.clone()).unwrap();
+        let last_epoch = stake_earning.epochs.1;
+    
+        if last_epoch == epoch {
+            return stake_earning;
+        }
+    
+        let epochs_per_year = 365 * 2;
+        let factor = U256::from(stake.amount) * U256::from(APY.0) / U256::from(APY.1).as_u128();
+        let yield_per_epoch = factor.as_u128() / epochs_per_year;
+        let epochs_staked = last_epoch - epoch;
+    
+        stake_earning = StakeEarning {
+            epochs: (last_epoch, epoch),
+            yield_balance: yield_balance += U128::from(yield_per_epoch * epochs_staked as u128),
+        };
+    
+        account.earnings.insert(&stake_id, &stake_earning.clone());
+    
+        stake_earning
     }
 }
 

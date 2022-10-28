@@ -19,6 +19,22 @@ pub type MotionId = String;
 pub type StakeId = String;
 pub type Epoch = u64;
 
+#[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct StakeEarning {
+    epochs: (u64, u64),
+    yield_balance: U128,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(crate = "near_sdk::serde")]
+pub struct WrappedStakeEarning {
+    stake_id: StakeId,
+    epochs: (u64, u64),
+    yield_balance: U128,
+    total_balance: U128,
+}
+
 #[derive(BorshDeserialize, Deserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct Motion {
@@ -99,6 +115,7 @@ pub struct WrappedBet {
 )]
 #[serde(crate = "near_sdk::serde")]
 pub struct WrappedStake {
+    pub stake_id: StakeId,
     pub bet_id: BetId,
     pub position: Position,
     pub amount: U128,
@@ -230,32 +247,6 @@ impl Contract {
         cancel_status.to_string()
     }
 
-    pub fn calculate_stake_reward(
-        &mut self,
-        stake_id: StakeId,
-    ) -> (u16, Balance) {
-        // what happens if/when the stake pool is changed and stakes are spread accross pools?!  Answer: move pool to the stake object.
-        let pool = &self
-            .metadata
-            .get()
-            .unwrap()
-            .pool
-            .unwrap_or(DEFAULT_STAKE_POOL.parse().unwrap());
-        let stake = self.stakes.get(&stake_id).unwrap_or_else(|| {
-            env::panic_str(&("ERR_DOES_NOT_EXIST stake_id: ".to_owned() + &stake_id.to_string()).as_str())
-        });
-
-        let mut offset = 0;
-        if DEFAULT_STAKE_POOL == "legends.pool.f863973.m0" {
-            offset = 30 * 2; // a month
-        }
-        let epochs_staked = env::epoch_height() - stake.epoch + offset;
-        let epochs_per_year = 365 * 2;
-        let factor = U256::from(stake.amount) * U256::from(APY.0) / U256::from(APY.1).as_u128();
-        let yield_per_epoch = factor.as_u128() / epochs_per_year;
-        (epochs_staked as u16, (yield_per_epoch * epochs_staked as u128) as Balance)
-    }
-
     pub fn refund_cancelled_stake(&mut self,
         stake_id: String,
     ) {
@@ -327,13 +318,35 @@ impl Contract {
     pub fn deposit_and_stake_callback(&mut self, stake_id: String, stake: Stake) -> String {
         assert_callback();
       
+        let mut offset = 0;
+        if DEFAULT_STAKE_POOL == "legends.pool.f863973.m0" {
+            offset = 30 * 2; // a month
+        }
         // handle the result from the cross contract call this method is a callback for
         match env::promise_result(0) {
             PromiseResult::NotReady => unreachable!(),
             PromiseResult::Failed => "oops!".to_string(),
             PromiseResult::Successful(_result) => {
                 // maybe we should be saving some unique id from the staking pool transaction for fast lookups later during calculations, etc... also to double check our own time based APY calculations. In which case the stake object should be updated to hold said id.
-                self.stakes.insert(&stake_id, &stake);
+                self.stakes.insert(&stake_id.clone(), &stake);
+                let epoch = env::epoch_height() + offset;
+                let account = self.accounts.get(&stake.staker);
+                let earning = StakeEarning {
+                    epochs: (epoch.clone(), epoch),
+                    yield_balance: U128(0)
+                };
+
+                if let Some(mut account) = account {
+                    account.earnings.insert(&stake_id, &earning);
+                    self.accounts.insert(&stake.staker, &account);
+                } else {
+                    let mut earnings = UnorderedMap::new(earning.try_to_vec().unwrap());
+                    earnings.insert(&stake_id, &earning);
+                    self.accounts.insert(&stake.staker, &Account {
+                        earnings
+                    });
+                }
+
                 self.match_stake(stake_id);
                 "ok".to_string()
             },
