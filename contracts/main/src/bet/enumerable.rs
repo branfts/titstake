@@ -168,12 +168,12 @@ impl Contract {
         &self,
         stake_ids: Vec<StakeId>
     ) -> Vec<WrappedStakeEarning> {
-        let account = self.accounts.get(&env::predecessor_account_id()).unwrap();
         stake_ids
             .into_iter()
             .map(|stake_id| {
-                let stake_earning = account.earnings.get(&stake_id.clone()).unwrap();
                 let stake = self.stakes.get(&stake_id).unwrap();
+                let account = self.accounts.get(&stake.staker).unwrap();
+                let stake_earning = account.earnings.get(&stake_id.clone()).unwrap();
                 let bet = self.bets.get(&stake.bet_id.clone()).unwrap();
 
                 WrappedStakeEarning {
