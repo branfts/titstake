@@ -60,6 +60,7 @@ pub struct Contract {
     pub persons: UnorderedSet<Person>,
     pub bets: UnorderedMap<BetId, Bet>,
     pub stakes: UnorderedMap<StakeId, Stake>,
+    // pub balances_by_epoch: UnorderedMap<EpochHeight, Vec<(AccountId, Balance)>>,
     pub cancelled_stakes: UnorderedMap<StakeId, CancelledStake>,
     pub extra_storage_in_bytes_per_bet: StorageUsage,
     pub extra_storage_in_bytes_per_stake: StorageUsage,

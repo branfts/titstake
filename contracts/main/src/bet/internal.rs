@@ -109,11 +109,11 @@ impl Contract {
         let epochs_per_year = 365 * 2;
         let factor = U256::from(stake.amount) * U256::from(APY.0) / U256::from(APY.1).as_u128();
         let yield_per_epoch = factor.as_u128() / epochs_per_year;
-        let epochs_staked = last_epoch - epoch;
+        let epochs_staked = epoch - last_epoch;
     
         stake_earning = StakeEarning {
             epochs: (last_epoch, epoch),
-            yield_balance: yield_balance += U128::from(yield_per_epoch * epochs_staked as u128),
+            yield_balance: stake_earning.yield_balance + (yield_per_epoch * epochs_staked as u128),
         };
     
         account.earnings.insert(&stake_id, &stake_earning.clone());
