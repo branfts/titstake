@@ -168,15 +168,27 @@ impl Contract {
         &self,
         stake_ids: Vec<StakeId>
     ) -> Vec<WrappedStakeEarning> {
+        let account = self.accounts.get(&env::predecessor_account_id()).unwrap();
         stake_ids
             .into_iter()
             .map(|stake_id| {
-                let stake_earning = self.internal_calculate_stake_earning(stake_id.clone());
+                let stake_earning = account.earnings.get(&stake_id.clone()).unwrap();
+                let stake = self.stakes.get(&stake_id).unwrap();
+                let bet = self.bets.get(&stake.bet_id.clone()).unwrap();
+
                 WrappedStakeEarning {
                     stake_id: stake_id.clone(),
-                    total_balance: U128::from(self.stakes.get(&stake_id).unwrap().amount),
+                    bet_id: stake.bet_id,
+                    prediction: bet.prediction,
+                    person: bet.person,
+                    end: bet.end,
+                    motion_id: bet.motion_id,
+                    position: stake.position,
+                    gentlemans: stake.gentlemans,
+                    epoch: stake.epoch,
                     epochs: stake_earning.epochs,
-                    yield_balance: stake_earning.yield_balance
+                    yield_balance: U128(stake_earning.yield_balance),
+                    total_balance: U128::from(stake.amount),
                 }
             })
             .collect()

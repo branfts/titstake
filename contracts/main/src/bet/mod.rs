@@ -17,20 +17,27 @@ pub type Person = String;
 pub type BetId = String;
 pub type MotionId = String;
 pub type StakeId = String;
-pub type Epoch = u64;
 
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct StakeEarning {
-    epochs: (u64, u64),
-    yield_balance: U128,
+    epochs: (EpochHeight, EpochHeight),
+    yield_balance: u128,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(crate = "near_sdk::serde")]
 pub struct WrappedStakeEarning {
     stake_id: StakeId,
-    epochs: (u64, u64),
+    bet_id: BetId,
+    prediction: Prediction,
+    person: String,
+    end: Timestamp,
+    motion_id: Option<String>,
+    position: Position,
+    gentlemans: bool,
+    epoch: EpochHeight,
+    epochs: (EpochHeight, EpochHeight),
     yield_balance: U128,
     total_balance: U128,
 }
@@ -49,7 +56,7 @@ pub struct Motion {
 }
 
 #[derive(
-    BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq, Eq, Hash,
+    BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug
 )]
 #[serde(crate = "near_sdk::serde")]
 pub enum Prediction {
@@ -193,6 +200,16 @@ impl Contract {
             .then(ext_self::ext(env::current_account_id()).deposit_and_stake_callback(stake_id.clone(), stake));
     }
 
+    pub fn update_stake_earnings(
+        &self,
+        stake_ids: Vec<StakeId>
+    ) -> Vec<StakeEarning> {
+        stake_ids
+            .into_iter()
+            .map(|stake_id| self.internal_calculate_stake_earning(stake_id))
+            .collect()
+    }
+
     #[payable]
     pub fn cancel_stake(&mut self,
         bet_id: BetId,
@@ -333,7 +350,7 @@ impl Contract {
                 let account = self.accounts.get(&stake.staker);
                 let earning = StakeEarning {
                     epochs: (epoch.clone(), epoch),
-                    yield_balance: U128(0)
+                    yield_balance: 0
                 };
 
                 if let Some(mut account) = account {

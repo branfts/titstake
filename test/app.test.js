@@ -624,4 +624,15 @@ describe(contractName, () => {
         console.log(earnings);
         expect(earnings);
     });
+    test(`update earnings calculations for stakes`, async () => {
+        const response = await bob.account.functionCall({
+            contractId,
+            methodName: 'update_stake_earnings',
+            args: {
+                stake_ids: [stakeId1, stakeId2]
+            },
+        });
+        console.log(response);
+        expect(response);
+    });
 });
